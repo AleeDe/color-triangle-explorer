@@ -31,7 +31,7 @@ function triangleArea(a: Vertex, b: Vertex, c: Vertex) {
 }
 
 function isDegenerate(a: Vertex, b: Vertex, c: Vertex) {
-  return triangleArea(a, b, c) < 0.5;
+  return triangleArea(a, b, c) < 1e-6;
 }
 
 function sign(n: number) {
@@ -39,17 +39,17 @@ function sign(n: number) {
   return n > 0 ? 1 : -1;
 }
 
-function pointOnSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number | null {
+function pointOnSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number, threshold: number): number | null {
   const dx = bx - ax;
   const dy = by - ay;
   const lenSq = dx * dx + dy * dy;
-  if (lenSq < 1e-10) return null;
+  if (lenSq < 1e-14) return null;
   const t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
   if (t < -0.01 || t > 1.01) return null;
   const projX = ax + t * dx;
   const projY = ay + t * dy;
   const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
-  if (dist < 5) return Math.max(0, Math.min(1, t));
+  if (dist < threshold) return Math.max(0, Math.min(1, t));
   return null;
 }
 
@@ -59,10 +59,14 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
   const d3 = cross2D(c.x, c.y, a.x, a.y, p.x, p.y);
   const crosses: [number, number, number] = [d1, d2, d3];
 
+  // Edge threshold: proportional to triangle perimeter
+  const perimeter = Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2) + Math.sqrt((c.x-b.x)**2+(c.y-b.y)**2) + Math.sqrt((a.x-c.x)**2+(a.y-c.y)**2);
+  const edgeThreshold = Math.max(perimeter * 0.015, 0.001);
+
   // Check edges
   const edges: [Vertex, Vertex][] = [[a, b], [b, c], [c, a]];
   for (let i = 0; i < 3; i++) {
-    const t = pointOnSegment(p.x, p.y, edges[i][0].x, edges[i][0].y, edges[i][1].x, edges[i][1].y);
+    const t = pointOnSegment(p.x, p.y, edges[i][0].x, edges[i][0].y, edges[i][1].x, edges[i][1].y, edgeThreshold);
     if (t !== null) {
       return { location: "edge", edge: { edgeIndex: i, t }, crosses };
     }
@@ -89,17 +93,17 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
 
 function lerpColor(a: Vertex, b: Vertex, t: number): [number, number, number] {
   return [
-    Math.round(a.r + t * (b.r - a.r)),
-    Math.round(a.g + t * (b.g - a.g)),
-    Math.round(a.b + t * (b.b - a.b)),
+    a.r + t * (b.r - a.r),
+    a.g + t * (b.g - a.g),
+    a.b + t * (b.b - a.b),
   ];
 }
 
 function baryColor(a: Vertex, b: Vertex, c: Vertex, l1: number, l2: number, l3: number): [number, number, number] {
   return [
-    Math.round(l1 * a.r + l2 * b.r + l3 * c.r),
-    Math.round(l1 * a.g + l2 * b.g + l3 * c.g),
-    Math.round(l1 * a.b + l2 * b.b + l3 * c.b),
+    l1 * a.r + l2 * b.r + l3 * c.r,
+    l1 * a.g + l2 * b.g + l3 * c.g,
+    l1 * a.b + l2 * b.b + l3 * c.b,
   ];
 }
 
@@ -107,7 +111,7 @@ function clampRGB(v: number) {
   return Math.max(0, Math.min(255, v));
 }
 
-function fmt(n: number, d = 3) {
+function fmt(n: number, d = 4) {
   return n.toFixed(d);
 }
 
@@ -144,17 +148,18 @@ function ColorSwatch({ r, g, b, size = "lg" }: { r: number; g: number; b: number
 }
 
 // --- Number input ---
-function NumInput({ label, value, onChange, min, max, color }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; color?: string }) {
+function NumInput({ label, value, onChange, min, max, step, color }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; color?: string }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input
         type="number"
         value={value}
+        step={step ?? 0.01}
         onChange={(e) => onChange(Number(e.target.value))}
         min={min}
         max={max}
-        className="w-20 px-2 py-1.5 rounded-md border border-input bg-card text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-24 px-2 py-1.5 rounded-md border border-input bg-card text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         style={color ? { borderLeftWidth: 3, borderLeftColor: color } : undefined}
       />
     </label>
@@ -195,26 +200,34 @@ export default function TriangleColorInterpolation() {
     setTarget({ ...DEFAULT_TARGET });
   }, []);
 
-  // Dynamic viewBox based on all points
+  // Dynamic viewBox — proportional padding so small triangles fill the canvas
   const viewBox = useMemo(() => {
     const allX = [...vertices.map(v => v.x), target.x];
     const allY = [...vertices.map(v => v.y), target.y];
-    const pad = 40;
-    const minX = Math.min(...allX) - pad;
-    const minY = Math.min(...allY) - pad;
-    const maxX = Math.max(...allX) + pad;
-    const maxY = Math.max(...allY) + pad;
-    return { minX, minY, w: maxX - minX, h: maxY - minY };
+    const rawMinX = Math.min(...allX);
+    const rawMinY = Math.min(...allY);
+    const rawMaxX = Math.max(...allX);
+    const rawMaxY = Math.max(...allY);
+    const spanX = rawMaxX - rawMinX || 1;
+    const spanY = rawMaxY - rawMinY || 1;
+    const pad = Math.max(spanX, spanY) * 0.25; // 25% proportional padding
+    const minX = rawMinX - pad;
+    const minY = rawMinY - pad;
+    const w = spanX + pad * 2;
+    const h = spanY + pad * 2;
+    // scale factor for consistent handle/stroke sizes
+    const scale = Math.max(w, h) / 500;
+    return { minX, minY, w, h, scale };
   }, [vertices, target]);
 
-  // SVG drag
+  // SVG drag — float precision
   const toSVG = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: Math.round(viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w),
-      y: Math.round(viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h),
+      x: parseFloat((viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w).toFixed(2)),
+      y: parseFloat((viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h).toFixed(2)),
     };
   }, [viewBox]);
 
@@ -289,15 +302,15 @@ export default function TriangleColorInterpolation() {
             >
               {/* Grid */}
               <defs>
-                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="hsl(220,15%,90%)" strokeWidth="0.5" />
+                <pattern id="grid" width={viewBox.scale * 50} height={viewBox.scale * 50} patternUnits="userSpaceOnUse">
+                  <path d={`M ${viewBox.scale * 50} 0 L 0 0 0 ${viewBox.scale * 50}`} fill="none" stroke="hsl(220,15%,90%)" strokeWidth={viewBox.scale * 0.5} />
                 </pattern>
               </defs>
               <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="hsl(220,20%,97%)" />
               <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="url(#grid)" />
               {/* Axes */}
-              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
-              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
+              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
+              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
 
               {/* Filled triangle */}
               <polygon
@@ -305,7 +318,7 @@ export default function TriangleColorInterpolation() {
                 fill="hsl(215,70%,45%)"
                 fillOpacity={0.06}
                 stroke="hsl(220,15%,75%)"
-                strokeWidth={1.5}
+                strokeWidth={viewBox.scale * 1.5}
               />
 
               {/* Edges with colored gradient */}
@@ -315,31 +328,33 @@ export default function TriangleColorInterpolation() {
                   x1={vertices[i].x} y1={vertices[i].y}
                   x2={vertices[j].x} y2={vertices[j].y}
                   stroke={VERTEX_COLORS_HEX[i]}
-                  strokeWidth={2}
+                  strokeWidth={viewBox.scale * 2}
                   strokeOpacity={0.4}
                 />
               ))}
 
               {/* Vertex handles */}
-              {vertices.map((v, i) => (
-                <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
-                  <circle cx={v.x} cy={v.y} r={HANDLE_R + 4} fill="transparent" />
-                  <circle cx={v.x} cy={v.y} r={HANDLE_R} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5} />
-                  <text x={v.x} y={v.y + 1} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="11" fontWeight="bold" className="pointer-events-none select-none">
-                    {VERTEX_LABELS[i]}
-                  </text>
-                  {/* Small color swatch near vertex */}
-                  <rect x={v.x + 14} y={v.y - 10} width={20} height={20} rx={4}
-                    fill={`rgb(${v.r},${v.g},${v.b})`} stroke="white" strokeWidth={1.5} className="pointer-events-none" />
-                </g>
-              ))}
+              {vertices.map((v, i) => {
+                const hr = HANDLE_R * viewBox.scale;
+                return (
+                  <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
+                    <circle cx={v.x} cy={v.y} r={hr + 4 * viewBox.scale} fill="transparent" />
+                    <circle cx={v.x} cy={v.y} r={hr} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                    <text x={v.x} y={v.y + 1 * viewBox.scale} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={11 * viewBox.scale} fontWeight="bold" className="pointer-events-none select-none">
+                      {VERTEX_LABELS[i]}
+                    </text>
+                    <rect x={v.x + 14 * viewBox.scale} y={v.y - 10 * viewBox.scale} width={20 * viewBox.scale} height={20 * viewBox.scale} rx={4 * viewBox.scale}
+                      fill={`rgb(${v.r},${v.g},${v.b})`} stroke="white" strokeWidth={1.5 * viewBox.scale} className="pointer-events-none" />
+                  </g>
+                );
+              })}
 
               {/* Target point */}
               <g onMouseDown={onMouseDown("P")} className="cursor-grab">
-                <circle cx={target.x} cy={target.y} r={HANDLE_R + 6} fill="transparent" />
-                <circle cx={target.x} cy={target.y} r={7} fill={computedColor ? `rgb(${computedColor[0]},${computedColor[1]},${computedColor[2]})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5} />
-                <circle cx={target.x} cy={target.y} r={12} fill="none" stroke={computedColor ? `rgb(${computedColor[0]},${computedColor[1]},${computedColor[2]})` : "hsl(220,10%,50%)"} strokeWidth={1.5} strokeDasharray="3 3" className="pointer-events-none" />
-                <text x={target.x} y={target.y - 18} textAnchor="middle" fill="hsl(220,25%,20%)" fontSize="11" fontWeight="600" className="pointer-events-none select-none">P</text>
+                <circle cx={target.x} cy={target.y} r={(HANDLE_R + 6) * viewBox.scale} fill="transparent" />
+                <circle cx={target.x} cy={target.y} r={7 * viewBox.scale} fill={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                <circle cx={target.x} cy={target.y} r={12 * viewBox.scale} fill="none" stroke={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} strokeWidth={1.5 * viewBox.scale} strokeDasharray={`${3 * viewBox.scale} ${3 * viewBox.scale}`} className="pointer-events-none" />
+                <text x={target.x} y={target.y - 18 * viewBox.scale} textAnchor="middle" fill="hsl(220,25%,20%)" fontSize={11 * viewBox.scale} fontWeight="600" className="pointer-events-none select-none">P</text>
               </g>
             </svg>
           </div>
@@ -371,7 +386,7 @@ export default function TriangleColorInterpolation() {
                   <div>
                     <div className="text-xs text-muted-foreground font-medium mb-1">Interpolated Color</div>
                     <div className="font-mono font-semibold text-foreground text-lg">
-                      rgb({computedColor[0]}, {computedColor[1]}, {computedColor[2]})
+                      rgb({fmt(computedColor[0])}, {fmt(computedColor[1])}, {fmt(computedColor[2])})
                     </div>
                   </div>
                 </div>
@@ -444,9 +459,9 @@ export default function TriangleColorInterpolation() {
                       <p>t = {fmt(t, 3)}</p>
                       <p>Color = (1−t)·C<sub>{labels[0]}</sub> + t·C<sub>{labels[1]}</sub></p>
                       <div className="bg-math rounded p-2 space-y-1">
-                        <p>R = (1−{fmt(t)})·{va.r} + {fmt(t)}·{vb.r} = <strong>{computedColor?.[0]}</strong></p>
-                        <p>G = (1−{fmt(t)})·{va.g} + {fmt(t)}·{vb.g} = <strong>{computedColor?.[1]}</strong></p>
-                        <p>B = (1−{fmt(t)})·{va.b} + {fmt(t)}·{vb.b} = <strong>{computedColor?.[2]}</strong></p>
+                        <p>R = (1−{fmt(t)})·{va.r} + {fmt(t)}·{vb.r} = <strong>{computedColor ? fmt(computedColor[0]) : ""}</strong></p>
+                        <p>G = (1−{fmt(t)})·{va.g} + {fmt(t)}·{vb.g} = <strong>{computedColor ? fmt(computedColor[1]) : ""}</strong></p>
+                        <p>B = (1−{fmt(t)})·{va.b} + {fmt(t)}·{vb.b} = <strong>{computedColor ? fmt(computedColor[2]) : ""}</strong></p>
                       </div>
                     </div>
                   );
@@ -464,9 +479,9 @@ export default function TriangleColorInterpolation() {
                   <p>λ₃ (C) = {fmt(result.bary[2])}</p>
                   <p className="text-muted-foreground">Sum = {fmt(result.bary[0] + result.bary[1] + result.bary[2])}</p>
                   <div className="bg-math rounded p-2 space-y-1">
-                    <p>R = {fmt(result.bary[0])}·{vertices[0].r} + {fmt(result.bary[1])}·{vertices[1].r} + {fmt(result.bary[2])}·{vertices[2].r} = <strong>{computedColor?.[0]}</strong></p>
-                    <p>G = {fmt(result.bary[0])}·{vertices[0].g} + {fmt(result.bary[1])}·{vertices[1].g} + {fmt(result.bary[2])}·{vertices[2].g} = <strong>{computedColor?.[1]}</strong></p>
-                    <p>B = {fmt(result.bary[0])}·{vertices[0].b} + {fmt(result.bary[1])}·{vertices[1].b} + {fmt(result.bary[2])}·{vertices[2].b} = <strong>{computedColor?.[2]}</strong></p>
+                    <p>R = {fmt(result.bary[0])}·{vertices[0].r} + {fmt(result.bary[1])}·{vertices[1].r} + {fmt(result.bary[2])}·{vertices[2].r} = <strong>{computedColor ? fmt(computedColor[0]) : ""}</strong></p>
+                    <p>G = {fmt(result.bary[0])}·{vertices[0].g} + {fmt(result.bary[1])}·{vertices[1].g} + {fmt(result.bary[2])}·{vertices[2].g} = <strong>{computedColor ? fmt(computedColor[1]) : ""}</strong></p>
+                    <p>B = {fmt(result.bary[0])}·{vertices[0].b} + {fmt(result.bary[1])}·{vertices[1].b} + {fmt(result.bary[2])}·{vertices[2].b} = <strong>{computedColor ? fmt(computedColor[2]) : ""}</strong></p>
                   </div>
                 </div>
               </Section>
