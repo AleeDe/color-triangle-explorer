@@ -1,4 +1,11 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import clsx from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return twMerge(clsx(inputs));
+}
 
 // --- Types ---
 interface Vertex {
@@ -187,6 +194,33 @@ export default function TriangleColorInterpolation() {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<null | "A" | "B" | "C" | "P">(null);
 
+  const getEventCoords = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+    if (!svgRef.current) return null;
+    let clientX, clientY;
+    if ("touches" in e) {
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        return null;
+      }
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const rect = svgRef.current.getBoundingClientRect();
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  };
+
+  const handlePointerDown = (id: "A" | "B" | "C" | "P") => (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    dragging.current = id;
+    document.body.style.userSelect = "none";
+  };
+
   const updateVertex = useCallback((idx: number, patch: Partial<Vertex>) => {
     setVertices((v) => {
       const copy = [...v] as [Vertex, Vertex, Vertex];
@@ -194,6 +228,39 @@ export default function TriangleColorInterpolation() {
       return copy;
     });
   }, []);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!dragging.current) return;
+      // prevent default to avoid scrolling on mobile when dragging
+      if (e.type === 'touchmove') {
+        e.preventDefault();
+      }
+      const coords = getEventCoords(e);
+      if (!coords) return;
+      if (dragging.current === "P") setTarget(coords);
+      else if (dragging.current === "A") updateVertex(0, coords);
+      else if (dragging.current === "B") updateVertex(1, coords);
+      else if (dragging.current === "C") updateVertex(2, coords);
+    };
+
+    const handleUp = () => {
+      dragging.current = null;
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
+    };
+  }, [updateVertex]);
 
   const reset = useCallback(() => {
     setVertices([...DEFAULT_VERTICES]);
@@ -288,17 +355,14 @@ export default function TriangleColorInterpolation() {
           </button>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <div className="flex flex-col-reverse lg:flex-row gap-6">
           {/* Canvas */}
-          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="flex-1 bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[400px]">
             <svg
               ref={svgRef}
               viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.w} ${viewBox.h}`}
-              className="w-full cursor-crosshair select-none"
+              className="w-full cursor-crosshair select-none touch-none"
               style={{ aspectRatio: `${viewBox.w} / ${viewBox.h}`, minHeight: 300, maxHeight: 500 }}
-              onMouseMove={onMouseMove}
-              onMouseUp={onMouseUp}
-              onMouseLeave={onMouseUp}
             >
               {/* Grid */}
               <defs>
@@ -337,8 +401,8 @@ export default function TriangleColorInterpolation() {
               {vertices.map((v, i) => {
                 const hr = HANDLE_R * viewBox.scale;
                 return (
-                  <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
-                    <circle cx={v.x} cy={v.y} r={hr + 4 * viewBox.scale} fill="transparent" />
+                  <g key={i} onMouseDown={handlePointerDown(VERTEX_LABELS[i] as "A" | "B" | "C")} onTouchStart={handlePointerDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab touch-none">
+                    <circle cx={v.x} cy={v.y} r={hr + 20 * viewBox.scale} fill="transparent" />
                     <circle cx={v.x} cy={v.y} r={hr} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5 * viewBox.scale} />
                     <text x={v.x} y={v.y + 1 * viewBox.scale} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={11 * viewBox.scale} fontWeight="bold" className="pointer-events-none select-none">
                       {VERTEX_LABELS[i]}
@@ -350,8 +414,8 @@ export default function TriangleColorInterpolation() {
               })}
 
               {/* Target point */}
-              <g onMouseDown={onMouseDown("P")} className="cursor-grab">
-                <circle cx={target.x} cy={target.y} r={(HANDLE_R + 6) * viewBox.scale} fill="transparent" />
+              <g onMouseDown={handlePointerDown("P")} onTouchStart={handlePointerDown("P")} className="cursor-grab touch-none">
+                <circle cx={target.x} cy={target.y} r={(HANDLE_R + 20) * viewBox.scale} fill="transparent" />
                 <circle cx={target.x} cy={target.y} r={7 * viewBox.scale} fill={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5 * viewBox.scale} />
                 <circle cx={target.x} cy={target.y} r={12 * viewBox.scale} fill="none" stroke={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} strokeWidth={1.5 * viewBox.scale} strokeDasharray={`${3 * viewBox.scale} ${3 * viewBox.scale}`} className="pointer-events-none" />
                 <text x={target.x} y={target.y - 18 * viewBox.scale} textAnchor="middle" fill="hsl(220,25%,20%)" fontSize={11 * viewBox.scale} fontWeight="600" className="pointer-events-none select-none">P</text>
@@ -360,7 +424,7 @@ export default function TriangleColorInterpolation() {
           </div>
 
           {/* Right panel */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 w-full lg:w-[380px] shrink-0">
             {/* Status badge */}
             <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
               {degenerate ? (

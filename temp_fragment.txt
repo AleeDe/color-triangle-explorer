@@ -1,0 +1,30 @@
+﻿                  key={idx}
+                  x1={vertices[i].x} y1={vertices[i].y}
+                  x2={vertices[j].x} y2={vertices[j].y}
+                  stroke={VERTEX_COLORS_HEX[i]}
+                  strokeWidth={viewBox.scale * 2}
+                  strokeOpacity={0.4}
+                />
+              ))}
+
+              {/* Vertex handles */}
+              {vertices.map((v, i) => {
+                const hr = HANDLE_R * viewBox.scale;
+                return (
+                  <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
+                    <circle cx={v.x} cy={v.y} r={hr + 4 * viewBox.scale} fill="transparent" />
+                    <circle cx={v.x} cy={v.y} r={hr} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                    <text x={v.x} y={v.y + 1 * viewBox.scale} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={11 * viewBox.scale} fontWeight="bold" className="pointer-events-none select-none">
+                      {VERTEX_LABELS[i]}
+                    </text>
+                    <rect x={v.x + 14 * viewBox.scale} y={v.y - 10 * viewBox.scale} width={20 * viewBox.scale} height={20 * viewBox.scale} rx={4 * viewBox.scale}
+                      fill={`rgb(${v.r},${v.g},${v.b})`} stroke="white" strokeWidth={1.5 * viewBox.scale} className="pointer-events-none" />
+                  </g>
+                );
+              })}
+
+              {/* Target point */}
+              <g onMouseDown={onMouseDown("P")} className="cursor-grab">
+                <circle cx={target.x} cy={target.y} r={(HANDLE_R + 6) * viewBox.scale} fill="transparent" />
+                <circle cx={target.x} cy={target.y} r={7 * viewBox.scale} fill={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                <circle cx={target.x} cy={target.y} r={12 * viewBox.scale} fill="none" stroke={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} strokeWidth={1.5 * viewBox.scale} strokeDasharray={`${3 * viewBox.scale} ${3 * viewBox.scale}`} className="pointer-events-none" />
