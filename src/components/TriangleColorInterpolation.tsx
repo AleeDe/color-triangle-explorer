@@ -384,8 +384,8 @@ export default function TriangleColorInterpolation() {
                       <ColorSwatch r={v.r} g={v.g} b={v.b} size="sm" />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <NumInput label="x" value={v.x} onChange={(val) => updateVertex(i, { x: val })} min={0} max={CANVAS_W} color={VERTEX_COLORS_HEX[i]} />
-                      <NumInput label="y" value={v.y} onChange={(val) => updateVertex(i, { y: val })} min={0} max={CANVAS_H} color={VERTEX_COLORS_HEX[i]} />
+                      <NumInput label="x" value={v.x} onChange={(val) => updateVertex(i, { x: val })} color={VERTEX_COLORS_HEX[i]} />
+                      <NumInput label="y" value={v.y} onChange={(val) => updateVertex(i, { y: val })} color={VERTEX_COLORS_HEX[i]} />
                       <NumInput label="R" value={v.r} onChange={(val) => updateVertex(i, { r: clampRGB(val) })} min={0} max={255} />
                       <NumInput label="G" value={v.g} onChange={(val) => updateVertex(i, { g: clampRGB(val) })} min={0} max={255} />
                       <NumInput label="B" value={v.b} onChange={(val) => updateVertex(i, { b: clampRGB(val) })} min={0} max={255} />
