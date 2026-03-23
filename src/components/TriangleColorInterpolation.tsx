@@ -258,13 +258,21 @@ export default function TriangleColorInterpolation() {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-            Triangle Color Interpolation
-          </h1>
-          <p className="mt-2 text-muted-foreground max-w-2xl">
-            Drag the vertices and target point to explore how colors are interpolated across a 2D triangle using <strong>barycentric coordinates</strong> and <strong>linear interpolation</strong>.
-          </p>
+        <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+              Triangle Color Interpolation
+            </h1>
+            <p className="mt-2 text-muted-foreground max-w-2xl">
+              Drag the vertices and target point to explore how colors are interpolated across a 2D triangle using <strong>barycentric coordinates</strong> and <strong>linear interpolation</strong>.
+            </p>
+          </div>
+          <button
+            onClick={reset}
+            className="mt-1 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/70 transition-colors border border-border"
+          >
+            ↺ Reset
+          </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
