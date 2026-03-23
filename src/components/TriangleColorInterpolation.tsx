@@ -190,16 +190,33 @@ export default function TriangleColorInterpolation() {
     });
   }, []);
 
+  const reset = useCallback(() => {
+    setVertices([...DEFAULT_VERTICES]);
+    setTarget({ ...DEFAULT_TARGET });
+  }, []);
+
+  // Dynamic viewBox based on all points
+  const viewBox = useMemo(() => {
+    const allX = [...vertices.map(v => v.x), target.x];
+    const allY = [...vertices.map(v => v.y), target.y];
+    const pad = 40;
+    const minX = Math.min(...allX) - pad;
+    const minY = Math.min(...allY) - pad;
+    const maxX = Math.max(...allX) + pad;
+    const maxY = Math.max(...allY) + pad;
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }, [vertices, target]);
+
   // SVG drag
   const toSVG = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: Math.round(((e.clientX - rect.left) / rect.width) * CANVAS_W),
-      y: Math.round(((e.clientY - rect.top) / rect.height) * CANVAS_H),
+      x: Math.round(viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w),
+      y: Math.round(viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h),
     };
-  }, []);
+  }, [viewBox]);
 
   const onMouseDown = useCallback((id: "A" | "B" | "C" | "P") => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -209,11 +226,10 @@ export default function TriangleColorInterpolation() {
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging.current) return;
     const pt = toSVG(e);
-    const clamped = { x: Math.max(10, Math.min(CANVAS_W - 10, pt.x)), y: Math.max(10, Math.min(CANVAS_H - 10, pt.y)) };
-    if (dragging.current === "P") setTarget(clamped);
+    if (dragging.current === "P") setTarget(pt);
     else {
       const idx = dragging.current.charCodeAt(0) - 65;
-      updateVertex(idx, clamped);
+      updateVertex(idx, pt);
     }
   }, [toSVG, updateVertex]);
 
