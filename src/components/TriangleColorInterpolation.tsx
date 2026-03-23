@@ -398,8 +398,8 @@ export default function TriangleColorInterpolation() {
                     <span className="text-sm font-semibold text-foreground">Target P</span>
                   </div>
                   <div className="flex gap-2">
-                    <NumInput label="x" value={target.x} onChange={(val) => setTarget((p) => ({ ...p, x: val }))} min={0} max={CANVAS_W} />
-                    <NumInput label="y" value={target.y} onChange={(val) => setTarget((p) => ({ ...p, y: val }))} min={0} max={CANVAS_H} />
+                    <NumInput label="x" value={target.x} onChange={(val) => setTarget((p) => ({ ...p, x: val }))} />
+                    <NumInput label="y" value={target.y} onChange={(val) => setTarget((p) => ({ ...p, y: val }))} />
                   </div>
                 </div>
               </div>
