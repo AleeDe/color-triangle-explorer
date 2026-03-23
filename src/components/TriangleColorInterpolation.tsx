@@ -196,26 +196,34 @@ export default function TriangleColorInterpolation() {
     setTarget({ ...DEFAULT_TARGET });
   }, []);
 
-  // Dynamic viewBox based on all points
+  // Dynamic viewBox — proportional padding so small triangles fill the canvas
   const viewBox = useMemo(() => {
     const allX = [...vertices.map(v => v.x), target.x];
     const allY = [...vertices.map(v => v.y), target.y];
-    const pad = 40;
-    const minX = Math.min(...allX) - pad;
-    const minY = Math.min(...allY) - pad;
-    const maxX = Math.max(...allX) + pad;
-    const maxY = Math.max(...allY) + pad;
-    return { minX, minY, w: maxX - minX, h: maxY - minY };
+    const rawMinX = Math.min(...allX);
+    const rawMinY = Math.min(...allY);
+    const rawMaxX = Math.max(...allX);
+    const rawMaxY = Math.max(...allY);
+    const spanX = rawMaxX - rawMinX || 1;
+    const spanY = rawMaxY - rawMinY || 1;
+    const pad = Math.max(spanX, spanY) * 0.25; // 25% proportional padding
+    const minX = rawMinX - pad;
+    const minY = rawMinY - pad;
+    const w = spanX + pad * 2;
+    const h = spanY + pad * 2;
+    // scale factor for consistent handle/stroke sizes
+    const scale = Math.max(w, h) / 500;
+    return { minX, minY, w, h, scale };
   }, [vertices, target]);
 
-  // SVG drag
+  // SVG drag — float precision
   const toSVG = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: Math.round(viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w),
-      y: Math.round(viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h),
+      x: parseFloat((viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w).toFixed(2)),
+      y: parseFloat((viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h).toFixed(2)),
     };
   }, [viewBox]);
 
