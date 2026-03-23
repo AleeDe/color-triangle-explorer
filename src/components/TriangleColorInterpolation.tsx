@@ -144,17 +144,18 @@ function ColorSwatch({ r, g, b, size = "lg" }: { r: number; g: number; b: number
 }
 
 // --- Number input ---
-function NumInput({ label, value, onChange, min, max, color }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; color?: string }) {
+function NumInput({ label, value, onChange, min, max, step, color }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; color?: string }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input
         type="number"
         value={value}
+        step={step ?? 0.01}
         onChange={(e) => onChange(Number(e.target.value))}
         min={min}
         max={max}
-        className="w-20 px-2 py-1.5 rounded-md border border-input bg-card text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-24 px-2 py-1.5 rounded-md border border-input bg-card text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         style={color ? { borderLeftWidth: 3, borderLeftColor: color } : undefined}
       />
     </label>
