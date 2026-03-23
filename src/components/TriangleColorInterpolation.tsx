@@ -272,8 +272,9 @@ export default function TriangleColorInterpolation() {
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+              viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.w} ${viewBox.h}`}
               className="w-full cursor-crosshair select-none"
+              style={{ aspectRatio: `${viewBox.w} / ${viewBox.h}`, minHeight: 300, maxHeight: 500 }}
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
               onMouseLeave={onMouseUp}
@@ -284,8 +285,11 @@ export default function TriangleColorInterpolation() {
                   <path d="M 50 0 L 0 0 0 50" fill="none" stroke="hsl(220,15%,90%)" strokeWidth="0.5" />
                 </pattern>
               </defs>
-              <rect width={CANVAS_W} height={CANVAS_H} fill="hsl(220,20%,97%)" />
-              <rect width={CANVAS_W} height={CANVAS_H} fill="url(#grid)" />
+              <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="hsl(220,20%,97%)" />
+              <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="url(#grid)" />
+              {/* Axes */}
+              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
+              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
 
               {/* Filled triangle */}
               <polygon
