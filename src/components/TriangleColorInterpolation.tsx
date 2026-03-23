@@ -89,17 +89,17 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
 
 function lerpColor(a: Vertex, b: Vertex, t: number): [number, number, number] {
   return [
-    Math.round(a.r + t * (b.r - a.r)),
-    Math.round(a.g + t * (b.g - a.g)),
-    Math.round(a.b + t * (b.b - a.b)),
+    a.r + t * (b.r - a.r),
+    a.g + t * (b.g - a.g),
+    a.b + t * (b.b - a.b),
   ];
 }
 
 function baryColor(a: Vertex, b: Vertex, c: Vertex, l1: number, l2: number, l3: number): [number, number, number] {
   return [
-    Math.round(l1 * a.r + l2 * b.r + l3 * c.r),
-    Math.round(l1 * a.g + l2 * b.g + l3 * c.g),
-    Math.round(l1 * a.b + l2 * b.b + l3 * c.b),
+    l1 * a.r + l2 * b.r + l3 * c.r,
+    l1 * a.g + l2 * b.g + l3 * c.g,
+    l1 * a.b + l2 * b.b + l3 * c.b,
   ];
 }
 
