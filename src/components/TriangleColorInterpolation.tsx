@@ -107,7 +107,7 @@ function clampRGB(v: number) {
   return Math.max(0, Math.min(255, v));
 }
 
-function fmt(n: number, d = 3) {
+function fmt(n: number, d = 4) {
   return n.toFixed(d);
 }
 
