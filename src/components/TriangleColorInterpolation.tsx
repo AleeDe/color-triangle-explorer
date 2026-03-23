@@ -162,22 +162,23 @@ function NumInput({ label, value, onChange, min, max, color }: { label: string; 
 }
 
 // --- Constants ---
-const CANVAS_W = 500;
-const CANVAS_H = 420;
 const HANDLE_R = 10;
 
 const EDGE_NAMES = ["AB", "BC", "CA"];
 const VERTEX_COLORS_HEX = ["#e53e3e", "#38a169", "#3b82f6"];
 const VERTEX_LABELS = ["A", "B", "C"];
 
+const DEFAULT_VERTICES: [Vertex, Vertex, Vertex] = [
+  { x: 250, y: 60, r: 255, g: 30, b: 30 },
+  { x: 80, y: 350, r: 30, g: 200, b: 30 },
+  { x: 420, y: 350, r: 30, g: 30, b: 255 },
+];
+const DEFAULT_TARGET: Point = { x: 250, y: 240 };
+
 // --- Main Component ---
 export default function TriangleColorInterpolation() {
-  const [vertices, setVertices] = useState<[Vertex, Vertex, Vertex]>([
-    { x: 250, y: 60, r: 255, g: 30, b: 30 },
-    { x: 80, y: 350, r: 30, g: 200, b: 30 },
-    { x: 420, y: 350, r: 30, g: 30, b: 255 },
-  ]);
-  const [target, setTarget] = useState<Point>({ x: 250, y: 240 });
+  const [vertices, setVertices] = useState<[Vertex, Vertex, Vertex]>([...DEFAULT_VERTICES]);
+  const [target, setTarget] = useState<Point>({ ...DEFAULT_TARGET });
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<null | "A" | "B" | "C" | "P">(null);
 
@@ -189,16 +190,33 @@ export default function TriangleColorInterpolation() {
     });
   }, []);
 
+  const reset = useCallback(() => {
+    setVertices([...DEFAULT_VERTICES]);
+    setTarget({ ...DEFAULT_TARGET });
+  }, []);
+
+  // Dynamic viewBox based on all points
+  const viewBox = useMemo(() => {
+    const allX = [...vertices.map(v => v.x), target.x];
+    const allY = [...vertices.map(v => v.y), target.y];
+    const pad = 40;
+    const minX = Math.min(...allX) - pad;
+    const minY = Math.min(...allY) - pad;
+    const maxX = Math.max(...allX) + pad;
+    const maxY = Math.max(...allY) + pad;
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }, [vertices, target]);
+
   // SVG drag
   const toSVG = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: Math.round(((e.clientX - rect.left) / rect.width) * CANVAS_W),
-      y: Math.round(((e.clientY - rect.top) / rect.height) * CANVAS_H),
+      x: Math.round(viewBox.minX + ((e.clientX - rect.left) / rect.width) * viewBox.w),
+      y: Math.round(viewBox.minY + ((e.clientY - rect.top) / rect.height) * viewBox.h),
     };
-  }, []);
+  }, [viewBox]);
 
   const onMouseDown = useCallback((id: "A" | "B" | "C" | "P") => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -208,11 +226,10 @@ export default function TriangleColorInterpolation() {
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging.current) return;
     const pt = toSVG(e);
-    const clamped = { x: Math.max(10, Math.min(CANVAS_W - 10, pt.x)), y: Math.max(10, Math.min(CANVAS_H - 10, pt.y)) };
-    if (dragging.current === "P") setTarget(clamped);
+    if (dragging.current === "P") setTarget(pt);
     else {
       const idx = dragging.current.charCodeAt(0) - 65;
-      updateVertex(idx, clamped);
+      updateVertex(idx, pt);
     }
   }, [toSVG, updateVertex]);
 
@@ -241,13 +258,21 @@ export default function TriangleColorInterpolation() {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-            Triangle Color Interpolation
-          </h1>
-          <p className="mt-2 text-muted-foreground max-w-2xl">
-            Drag the vertices and target point to explore how colors are interpolated across a 2D triangle using <strong>barycentric coordinates</strong> and <strong>linear interpolation</strong>.
-          </p>
+        <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+              Triangle Color Interpolation
+            </h1>
+            <p className="mt-2 text-muted-foreground max-w-2xl">
+              Drag the vertices and target point to explore how colors are interpolated across a 2D triangle using <strong>barycentric coordinates</strong> and <strong>linear interpolation</strong>.
+            </p>
+          </div>
+          <button
+            onClick={reset}
+            className="mt-1 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/70 transition-colors border border-border"
+          >
+            ↺ Reset
+          </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
@@ -255,8 +280,9 @@ export default function TriangleColorInterpolation() {
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+              viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.w} ${viewBox.h}`}
               className="w-full cursor-crosshair select-none"
+              style={{ aspectRatio: `${viewBox.w} / ${viewBox.h}`, minHeight: 300, maxHeight: 500 }}
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
               onMouseLeave={onMouseUp}
@@ -267,8 +293,11 @@ export default function TriangleColorInterpolation() {
                   <path d="M 50 0 L 0 0 0 50" fill="none" stroke="hsl(220,15%,90%)" strokeWidth="0.5" />
                 </pattern>
               </defs>
-              <rect width={CANVAS_W} height={CANVAS_H} fill="hsl(220,20%,97%)" />
-              <rect width={CANVAS_W} height={CANVAS_H} fill="url(#grid)" />
+              <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="hsl(220,20%,97%)" />
+              <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="url(#grid)" />
+              {/* Axes */}
+              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
+              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
 
               {/* Filled triangle */}
               <polygon
@@ -363,8 +392,8 @@ export default function TriangleColorInterpolation() {
                       <ColorSwatch r={v.r} g={v.g} b={v.b} size="sm" />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <NumInput label="x" value={v.x} onChange={(val) => updateVertex(i, { x: val })} min={0} max={CANVAS_W} color={VERTEX_COLORS_HEX[i]} />
-                      <NumInput label="y" value={v.y} onChange={(val) => updateVertex(i, { y: val })} min={0} max={CANVAS_H} color={VERTEX_COLORS_HEX[i]} />
+                      <NumInput label="x" value={v.x} onChange={(val) => updateVertex(i, { x: val })} color={VERTEX_COLORS_HEX[i]} />
+                      <NumInput label="y" value={v.y} onChange={(val) => updateVertex(i, { y: val })} color={VERTEX_COLORS_HEX[i]} />
                       <NumInput label="R" value={v.r} onChange={(val) => updateVertex(i, { r: clampRGB(val) })} min={0} max={255} />
                       <NumInput label="G" value={v.g} onChange={(val) => updateVertex(i, { g: clampRGB(val) })} min={0} max={255} />
                       <NumInput label="B" value={v.b} onChange={(val) => updateVertex(i, { b: clampRGB(val) })} min={0} max={255} />
@@ -377,8 +406,8 @@ export default function TriangleColorInterpolation() {
                     <span className="text-sm font-semibold text-foreground">Target P</span>
                   </div>
                   <div className="flex gap-2">
-                    <NumInput label="x" value={target.x} onChange={(val) => setTarget((p) => ({ ...p, x: val }))} min={0} max={CANVAS_W} />
-                    <NumInput label="y" value={target.y} onChange={(val) => setTarget((p) => ({ ...p, y: val }))} min={0} max={CANVAS_H} />
+                    <NumInput label="x" value={target.x} onChange={(val) => setTarget((p) => ({ ...p, x: val }))} />
+                    <NumInput label="y" value={target.y} onChange={(val) => setTarget((p) => ({ ...p, y: val }))} />
                   </div>
                 </div>
               </div>
