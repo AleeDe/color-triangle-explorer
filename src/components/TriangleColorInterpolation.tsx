@@ -162,22 +162,23 @@ function NumInput({ label, value, onChange, min, max, color }: { label: string; 
 }
 
 // --- Constants ---
-const CANVAS_W = 500;
-const CANVAS_H = 420;
 const HANDLE_R = 10;
 
 const EDGE_NAMES = ["AB", "BC", "CA"];
 const VERTEX_COLORS_HEX = ["#e53e3e", "#38a169", "#3b82f6"];
 const VERTEX_LABELS = ["A", "B", "C"];
 
+const DEFAULT_VERTICES: [Vertex, Vertex, Vertex] = [
+  { x: 250, y: 60, r: 255, g: 30, b: 30 },
+  { x: 80, y: 350, r: 30, g: 200, b: 30 },
+  { x: 420, y: 350, r: 30, g: 30, b: 255 },
+];
+const DEFAULT_TARGET: Point = { x: 250, y: 240 };
+
 // --- Main Component ---
 export default function TriangleColorInterpolation() {
-  const [vertices, setVertices] = useState<[Vertex, Vertex, Vertex]>([
-    { x: 250, y: 60, r: 255, g: 30, b: 30 },
-    { x: 80, y: 350, r: 30, g: 200, b: 30 },
-    { x: 420, y: 350, r: 30, g: 30, b: 255 },
-  ]);
-  const [target, setTarget] = useState<Point>({ x: 250, y: 240 });
+  const [vertices, setVertices] = useState<[Vertex, Vertex, Vertex]>([...DEFAULT_VERTICES]);
+  const [target, setTarget] = useState<Point>({ ...DEFAULT_TARGET });
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<null | "A" | "B" | "C" | "P">(null);
 
