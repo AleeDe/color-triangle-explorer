@@ -31,7 +31,7 @@ function triangleArea(a: Vertex, b: Vertex, c: Vertex) {
 }
 
 function isDegenerate(a: Vertex, b: Vertex, c: Vertex) {
-  return triangleArea(a, b, c) < 0.5;
+  return triangleArea(a, b, c) < 1e-6;
 }
 
 function sign(n: number) {
