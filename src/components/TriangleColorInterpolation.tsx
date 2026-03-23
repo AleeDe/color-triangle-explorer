@@ -382,7 +382,7 @@ export default function TriangleColorInterpolation() {
                   <div>
                     <div className="text-xs text-muted-foreground font-medium mb-1">Interpolated Color</div>
                     <div className="font-mono font-semibold text-foreground text-lg">
-                      rgb({computedColor[0]}, {computedColor[1]}, {computedColor[2]})
+                      rgb({fmt(computedColor[0])}, {fmt(computedColor[1])}, {fmt(computedColor[2])})
                     </div>
                   </div>
                 </div>
