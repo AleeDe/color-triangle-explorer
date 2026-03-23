@@ -181,11 +181,11 @@ const VERTEX_COLORS_HEX = ["#e53e3e", "#38a169", "#3b82f6"];
 const VERTEX_LABELS = ["A", "B", "C"];
 
 const DEFAULT_VERTICES: [Vertex, Vertex, Vertex] = [
-  { x: 250, y: 60, r: 255, g: 30, b: 30 },
-  { x: 80, y: 350, r: 30, g: 200, b: 30 },
-  { x: 420, y: 350, r: 30, g: 30, b: 255 },
+  { x: 0, y: -3, r: 6, g: 3, b: 9 },
+  { x: 0, y: 3, r: 21, g: 0, b: 18 },
+  { x: 3, y: 0, r: 33, g: 0, b: 12 },
 ];
-const DEFAULT_TARGET: Point = { x: 250, y: 240 };
+const DEFAULT_TARGET: Point = { x: 0, y: 0 };
 
 // --- Main Component ---
 export default function TriangleColorInterpolation() {
