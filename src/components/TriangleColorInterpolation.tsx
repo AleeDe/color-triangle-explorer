@@ -59,10 +59,14 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
   const d3 = cross2D(c.x, c.y, a.x, a.y, p.x, p.y);
   const crosses: [number, number, number] = [d1, d2, d3];
 
+  // Edge threshold: proportional to triangle perimeter
+  const perimeter = Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2) + Math.sqrt((c.x-b.x)**2+(c.y-b.y)**2) + Math.sqrt((a.x-c.x)**2+(a.y-c.y)**2);
+  const edgeThreshold = Math.max(perimeter * 0.015, 0.001);
+
   // Check edges
   const edges: [Vertex, Vertex][] = [[a, b], [b, c], [c, a]];
   for (let i = 0; i < 3; i++) {
-    const t = pointOnSegment(p.x, p.y, edges[i][0].x, edges[i][0].y, edges[i][1].x, edges[i][1].y);
+    const t = pointOnSegment(p.x, p.y, edges[i][0].x, edges[i][0].y, edges[i][1].x, edges[i][1].y, edgeThreshold);
     if (t !== null) {
       return { location: "edge", edge: { edgeIndex: i, t }, crosses };
     }
