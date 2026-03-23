@@ -298,15 +298,15 @@ export default function TriangleColorInterpolation() {
             >
               {/* Grid */}
               <defs>
-                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="hsl(220,15%,90%)" strokeWidth="0.5" />
+                <pattern id="grid" width={viewBox.scale * 50} height={viewBox.scale * 50} patternUnits="userSpaceOnUse">
+                  <path d={`M ${viewBox.scale * 50} 0 L 0 0 0 ${viewBox.scale * 50}`} fill="none" stroke="hsl(220,15%,90%)" strokeWidth={viewBox.scale * 0.5} />
                 </pattern>
               </defs>
               <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="hsl(220,20%,97%)" />
               <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.w} height={viewBox.h} fill="url(#grid)" />
               {/* Axes */}
-              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
-              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth="0.8" />
+              <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
+              <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
 
               {/* Filled triangle */}
               <polygon
@@ -314,7 +314,7 @@ export default function TriangleColorInterpolation() {
                 fill="hsl(215,70%,45%)"
                 fillOpacity={0.06}
                 stroke="hsl(220,15%,75%)"
-                strokeWidth={1.5}
+                strokeWidth={viewBox.scale * 1.5}
               />
 
               {/* Edges with colored gradient */}
@@ -324,31 +324,33 @@ export default function TriangleColorInterpolation() {
                   x1={vertices[i].x} y1={vertices[i].y}
                   x2={vertices[j].x} y2={vertices[j].y}
                   stroke={VERTEX_COLORS_HEX[i]}
-                  strokeWidth={2}
+                  strokeWidth={viewBox.scale * 2}
                   strokeOpacity={0.4}
                 />
               ))}
 
               {/* Vertex handles */}
-              {vertices.map((v, i) => (
-                <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
-                  <circle cx={v.x} cy={v.y} r={HANDLE_R + 4} fill="transparent" />
-                  <circle cx={v.x} cy={v.y} r={HANDLE_R} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5} />
-                  <text x={v.x} y={v.y + 1} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="11" fontWeight="bold" className="pointer-events-none select-none">
-                    {VERTEX_LABELS[i]}
-                  </text>
-                  {/* Small color swatch near vertex */}
-                  <rect x={v.x + 14} y={v.y - 10} width={20} height={20} rx={4}
-                    fill={`rgb(${v.r},${v.g},${v.b})`} stroke="white" strokeWidth={1.5} className="pointer-events-none" />
-                </g>
-              ))}
+              {vertices.map((v, i) => {
+                const hr = HANDLE_R * viewBox.scale;
+                return (
+                  <g key={i} onMouseDown={onMouseDown(VERTEX_LABELS[i] as "A" | "B" | "C")} className="cursor-grab">
+                    <circle cx={v.x} cy={v.y} r={hr + 4 * viewBox.scale} fill="transparent" />
+                    <circle cx={v.x} cy={v.y} r={hr} fill={VERTEX_COLORS_HEX[i]} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                    <text x={v.x} y={v.y + 1 * viewBox.scale} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={11 * viewBox.scale} fontWeight="bold" className="pointer-events-none select-none">
+                      {VERTEX_LABELS[i]}
+                    </text>
+                    <rect x={v.x + 14 * viewBox.scale} y={v.y - 10 * viewBox.scale} width={20 * viewBox.scale} height={20 * viewBox.scale} rx={4 * viewBox.scale}
+                      fill={`rgb(${v.r},${v.g},${v.b})`} stroke="white" strokeWidth={1.5 * viewBox.scale} className="pointer-events-none" />
+                  </g>
+                );
+              })}
 
               {/* Target point */}
               <g onMouseDown={onMouseDown("P")} className="cursor-grab">
-                <circle cx={target.x} cy={target.y} r={HANDLE_R + 6} fill="transparent" />
-                <circle cx={target.x} cy={target.y} r={7} fill={computedColor ? `rgb(${computedColor[0]},${computedColor[1]},${computedColor[2]})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5} />
-                <circle cx={target.x} cy={target.y} r={12} fill="none" stroke={computedColor ? `rgb(${computedColor[0]},${computedColor[1]},${computedColor[2]})` : "hsl(220,10%,50%)"} strokeWidth={1.5} strokeDasharray="3 3" className="pointer-events-none" />
-                <text x={target.x} y={target.y - 18} textAnchor="middle" fill="hsl(220,25%,20%)" fontSize="11" fontWeight="600" className="pointer-events-none select-none">P</text>
+                <circle cx={target.x} cy={target.y} r={(HANDLE_R + 6) * viewBox.scale} fill="transparent" />
+                <circle cx={target.x} cy={target.y} r={7 * viewBox.scale} fill={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} stroke="white" strokeWidth={2.5 * viewBox.scale} />
+                <circle cx={target.x} cy={target.y} r={12 * viewBox.scale} fill="none" stroke={computedColor ? `rgb(${Math.round(computedColor[0])},${Math.round(computedColor[1])},${Math.round(computedColor[2])})` : "hsl(220,10%,50%)"} strokeWidth={1.5 * viewBox.scale} strokeDasharray={`${3 * viewBox.scale} ${3 * viewBox.scale}`} className="pointer-events-none" />
+                <text x={target.x} y={target.y - 18 * viewBox.scale} textAnchor="middle" fill="hsl(220,25%,20%)" fontSize={11 * viewBox.scale} fontWeight="600" className="pointer-events-none select-none">P</text>
               </g>
             </svg>
           </div>
