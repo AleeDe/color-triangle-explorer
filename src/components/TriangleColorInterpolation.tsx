@@ -455,9 +455,9 @@ export default function TriangleColorInterpolation() {
                       <p>t = {fmt(t, 3)}</p>
                       <p>Color = (1−t)·C<sub>{labels[0]}</sub> + t·C<sub>{labels[1]}</sub></p>
                       <div className="bg-math rounded p-2 space-y-1">
-                        <p>R = (1−{fmt(t)})·{va.r} + {fmt(t)}·{vb.r} = <strong>{computedColor?.[0]}</strong></p>
-                        <p>G = (1−{fmt(t)})·{va.g} + {fmt(t)}·{vb.g} = <strong>{computedColor?.[1]}</strong></p>
-                        <p>B = (1−{fmt(t)})·{va.b} + {fmt(t)}·{vb.b} = <strong>{computedColor?.[2]}</strong></p>
+                        <p>R = (1−{fmt(t)})·{va.r} + {fmt(t)}·{vb.r} = <strong>{computedColor ? fmt(computedColor[0]) : ""}</strong></p>
+                        <p>G = (1−{fmt(t)})·{va.g} + {fmt(t)}·{vb.g} = <strong>{computedColor ? fmt(computedColor[1]) : ""}</strong></p>
+                        <p>B = (1−{fmt(t)})·{va.b} + {fmt(t)}·{vb.b} = <strong>{computedColor ? fmt(computedColor[2]) : ""}</strong></p>
                       </div>
                     </div>
                   );
