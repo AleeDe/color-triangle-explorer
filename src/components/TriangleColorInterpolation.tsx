@@ -475,9 +475,9 @@ export default function TriangleColorInterpolation() {
                   <p>λ₃ (C) = {fmt(result.bary[2])}</p>
                   <p className="text-muted-foreground">Sum = {fmt(result.bary[0] + result.bary[1] + result.bary[2])}</p>
                   <div className="bg-math rounded p-2 space-y-1">
-                    <p>R = {fmt(result.bary[0])}·{vertices[0].r} + {fmt(result.bary[1])}·{vertices[1].r} + {fmt(result.bary[2])}·{vertices[2].r} = <strong>{computedColor?.[0]}</strong></p>
-                    <p>G = {fmt(result.bary[0])}·{vertices[0].g} + {fmt(result.bary[1])}·{vertices[1].g} + {fmt(result.bary[2])}·{vertices[2].g} = <strong>{computedColor?.[1]}</strong></p>
-                    <p>B = {fmt(result.bary[0])}·{vertices[0].b} + {fmt(result.bary[1])}·{vertices[1].b} + {fmt(result.bary[2])}·{vertices[2].b} = <strong>{computedColor?.[2]}</strong></p>
+                    <p>R = {fmt(result.bary[0])}·{vertices[0].r} + {fmt(result.bary[1])}·{vertices[1].r} + {fmt(result.bary[2])}·{vertices[2].r} = <strong>{computedColor ? fmt(computedColor[0]) : ""}</strong></p>
+                    <p>G = {fmt(result.bary[0])}·{vertices[0].g} + {fmt(result.bary[1])}·{vertices[1].g} + {fmt(result.bary[2])}·{vertices[2].g} = <strong>{computedColor ? fmt(computedColor[1]) : ""}</strong></p>
+                    <p>B = {fmt(result.bary[0])}·{vertices[0].b} + {fmt(result.bary[1])}·{vertices[1].b} + {fmt(result.bary[2])}·{vertices[2].b} = <strong>{computedColor ? fmt(computedColor[2]) : ""}</strong></p>
                   </div>
                 </div>
               </Section>
