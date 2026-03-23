@@ -39,17 +39,17 @@ function sign(n: number) {
   return n > 0 ? 1 : -1;
 }
 
-function pointOnSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number | null {
+function pointOnSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number, threshold: number): number | null {
   const dx = bx - ax;
   const dy = by - ay;
   const lenSq = dx * dx + dy * dy;
-  if (lenSq < 1e-10) return null;
+  if (lenSq < 1e-14) return null;
   const t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
   if (t < -0.01 || t > 1.01) return null;
   const projX = ax + t * dx;
   const projY = ay + t * dy;
   const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
-  if (dist < 5) return Math.max(0, Math.min(1, t));
+  if (dist < threshold) return Math.max(0, Math.min(1, t));
   return null;
 }
 
