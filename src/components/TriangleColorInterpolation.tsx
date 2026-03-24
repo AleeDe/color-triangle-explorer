@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useRef, useMemo, useEffect, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -60,6 +60,14 @@ function pointOnSegment(px: number, py: number, ax: number, ay: number, bx: numb
   return null;
 }
 
+function getBarycentricCoordinates(p: Point, a: Vertex, b: Vertex, c: Vertex): [number, number, number] {
+  const area = cross2D(a.x, a.y, b.x, b.y, c.x, c.y);
+  const l1 = cross2D(b.x, b.y, c.x, c.y, p.x, p.y) / area;
+  const l2 = cross2D(c.x, c.y, a.x, a.y, p.x, p.y) / area;
+  const l3 = 1 - l1 - l2;
+  return [l1, l2, l3];
+}
+
 function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: PointLocation; edge?: EdgeInfo; bary?: [number, number, number]; crosses: [number, number, number] } {
   const d1 = cross2D(a.x, a.y, b.x, b.y, p.x, p.y);
   const d2 = cross2D(b.x, b.y, c.x, c.y, p.x, p.y);
@@ -75,7 +83,7 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
   for (let i = 0; i < 3; i++) {
     const t = pointOnSegment(p.x, p.y, edges[i][0].x, edges[i][0].y, edges[i][1].x, edges[i][1].y, edgeThreshold);
     if (t !== null) {
-      return { location: "edge", edge: { edgeIndex: i, t }, crosses };
+      return { location: "edge", edge: { edgeIndex: i, t }, bary: getBarycentricCoordinates(p, a, b, c), crosses };
     }
   }
 
@@ -88,11 +96,7 @@ function classifyPoint(p: Point, a: Vertex, b: Vertex, c: Vertex): { location: P
 
   if (!(hasNeg && hasPos)) {
     // Inside — compute barycentric
-    const area = cross2D(a.x, a.y, b.x, b.y, c.x, c.y);
-    const l1 = cross2D(b.x, b.y, c.x, c.y, p.x, p.y) / area;
-    const l2 = cross2D(c.x, c.y, a.x, a.y, p.x, p.y) / area;
-    const l3 = 1 - l1 - l2;
-    return { location: "inside", bary: [l1, l2, l3], crosses };
+    return { location: "inside", bary: getBarycentricCoordinates(p, a, b, c), crosses };
   }
 
   return { location: "outside", crosses };
@@ -181,9 +185,9 @@ const VERTEX_COLORS_HEX = ["#e53e3e", "#38a169", "#3b82f6"];
 const VERTEX_LABELS = ["A", "B", "C"];
 
 const DEFAULT_VERTICES: [Vertex, Vertex, Vertex] = [
-  { x: 0, y: -3, r: 6, g: 3, b: 9 },
-  { x: 0, y: 3, r: 21, g: 0, b: 18 },
-  { x: 3, y: 0, r: 33, g: 0, b: 12 },
+  { x: 0, y: -3, r: 255, g: 64, b: 64 },
+  { x: 0, y: 3, r: 64, g: 220, b: 120 },
+  { x: 3, y: 0, r: 64, g: 140, b: 255 },
 ];
 const DEFAULT_TARGET: Point = { x: 0, y: 0 };
 
@@ -193,79 +197,11 @@ export default function TriangleColorInterpolation() {
   const [target, setTarget] = useState<Point>({ ...DEFAULT_TARGET });
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<null | "A" | "B" | "C" | "P">(null);
+  const triangleFillId = useId().replace(/:/g, "");
 
-  const getEventCoords = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
-    if (!svgRef.current) return null;
-    let clientX, clientY;
-    if ("touches" in e) {
-      if (e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        return null;
-      }
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    const rect = svgRef.current.getBoundingClientRect();
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
-    };
-  };
+  // ...existing code...
 
-  const handlePointerDown = (id: "A" | "B" | "C" | "P") => (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    dragging.current = id;
-    document.body.style.userSelect = "none";
-  };
-
-  const updateVertex = useCallback((idx: number, patch: Partial<Vertex>) => {
-    setVertices((v) => {
-      const copy = [...v] as [Vertex, Vertex, Vertex];
-      copy[idx] = { ...copy[idx], ...patch };
-      return copy;
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      if (!dragging.current) return;
-      // prevent default to avoid scrolling on mobile when dragging
-      if (e.type === 'touchmove') {
-        e.preventDefault();
-      }
-      const coords = getEventCoords(e);
-      if (!coords) return;
-      if (dragging.current === "P") setTarget(coords);
-      else if (dragging.current === "A") updateVertex(0, coords);
-      else if (dragging.current === "B") updateVertex(1, coords);
-      else if (dragging.current === "C") updateVertex(2, coords);
-    };
-
-    const handleUp = () => {
-      dragging.current = null;
-      document.body.style.userSelect = "";
-    };
-
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
-    window.addEventListener("touchmove", handleMove, { passive: false });
-    window.addEventListener("touchend", handleUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-      window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchend", handleUp);
-    };
-  }, [updateVertex]);
-
-  const reset = useCallback(() => {
-    setVertices([...DEFAULT_VERTICES]);
-    setTarget({ ...DEFAULT_TARGET });
-  }, []);
+  // ...existing code...
 
   // Dynamic viewBox — proportional padding so small triangles fill the canvas
   const viewBox = useMemo(() => {
@@ -286,6 +222,94 @@ export default function TriangleColorInterpolation() {
     const scale = Math.max(w, h) / 500;
     return { minX, minY, w, h, scale };
   }, [vertices, target]);
+
+  // Get SVG coordinates from mouse or touch event (must be after viewBox)
+  const getEventCoords = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
+    if (!svgRef.current) return null;
+    let clientX = 0, clientY = 0;
+    if ('touches' in e && e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('changedTouches' in e && e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else if ('clientX' in e && 'clientY' in e) {
+      clientX = (e as MouseEvent | React.MouseEvent).clientX;
+      clientY = (e as MouseEvent | React.MouseEvent).clientY;
+    } else {
+      return null;
+    }
+    const rect = svgRef.current.getBoundingClientRect();
+    // Map to SVG coordinates
+    const x = viewBox.minX + ((clientX - rect.left) / rect.width) * viewBox.w;
+    const y = viewBox.minY + ((clientY - rect.top) / rect.height) * viewBox.h;
+    return { x, y };
+  };
+
+  // Start dragging a handle (mouse or touch)
+  const handlePointerDown = (id: "A" | "B" | "C" | "P") => (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    dragging.current = id;
+    document.body.style.userSelect = "none";
+    // For touch, immediately update position
+    const coords = getEventCoords(e.nativeEvent ? e.nativeEvent : e);
+    if (coords) {
+      if (id === "P") setTarget(coords);
+      else {
+        const idx = id.charCodeAt(0) - 65;
+        updateVertex(idx, coords);
+      }
+    }
+  };
+
+  const updateVertex = useCallback((idx: number, patch: Partial<Vertex>) => {
+    setVertices((v) => {
+      const copy = [...v] as [Vertex, Vertex, Vertex];
+      copy[idx] = { ...copy[idx], ...patch };
+      return copy;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!dragging.current) return;
+      // prevent default to avoid scrolling on mobile when dragging
+      if (e.type === 'touchmove') {
+        e.preventDefault();
+      }
+      const coords = getEventCoords(e);
+      if (!coords) return;
+      if (dragging.current === "P") setTarget(coords);
+      else {
+        const idx = dragging.current.charCodeAt(0) - 65;
+        updateVertex(idx, coords);
+      }
+    };
+
+    const handleUp = () => {
+      dragging.current = null;
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
+    };
+  }, [updateVertex, viewBox]);
+
+  const reset = useCallback(() => {
+    setVertices([...DEFAULT_VERTICES]);
+    setTarget({ ...DEFAULT_TARGET });
+  }, []);
+
+  
 
   // SVG drag — float precision
   const toSVG = useCallback((e: React.MouseEvent | MouseEvent) => {
@@ -341,10 +365,10 @@ export default function TriangleColorInterpolation() {
         <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-              Triangle Color Interpolation
+              Barycentric Color Mixing Explorer
             </h1>
             <p className="mt-2 text-muted-foreground max-w-2xl">
-              Drag the vertices and target point to explore how colors are interpolated across a 2D triangle using <strong>barycentric coordinates</strong> and <strong>linear interpolation</strong>.
+              Drag the three colored vertices to mix their colors across the triangle, then move point <strong>P</strong> to inspect the interpolated result at any location using <strong>barycentric coordinates</strong> and edge <strong>LERP</strong>.
             </p>
           </div>
           <button
@@ -376,24 +400,105 @@ export default function TriangleColorInterpolation() {
               <line x1={viewBox.minX} y1={0} x2={viewBox.minX + viewBox.w} y2={0} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
               <line x1={0} y1={viewBox.minY} x2={0} y2={viewBox.minY + viewBox.h} stroke="hsl(220,15%,80%)" strokeWidth={viewBox.scale * 0.8} />
 
-              {/* Filled triangle */}
-              <polygon
-                points={vertices.map((v) => `${v.x},${v.y}`).join(" ")}
-                fill="hsl(215,70%,45%)"
-                fillOpacity={0.06}
-                stroke="hsl(220,15%,75%)"
-                strokeWidth={viewBox.scale * 1.5}
-              />
+
+              {/* Color-interpolated triangle fill (barycentric blend) */}
+              {(() => {
+                // Fill the entire triangle with barycentric-interpolated color
+                const [a, b, c] = vertices;
+                const size = 128; // higher resolution for better quality
+                // Compute bounding box
+                const minX = Math.min(a.x, b.x, c.x);
+                const minY = Math.min(a.y, b.y, c.y);
+                const maxX = Math.max(a.x, b.x, c.x);
+                const maxY = Math.max(a.y, b.y, c.y);
+                const w = maxX - minX;
+                const h = maxY - minY;
+                let dataUrl = "";
+                if (typeof window !== "undefined" && window.document) {
+                  const canvas = window.document.createElement("canvas");
+                  canvas.width = size;
+                  canvas.height = size;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) {
+                    // Transparent background
+                    ctx.clearRect(0, 0, size, size);
+                    const imgData = ctx.createImageData(size, size);
+                    for (let j = 0; j < size; j++) {
+                      for (let i = 0; i < size; i++) {
+                        // Map (i, j) to SVG coordinates in the triangle's bounding box
+                        const x = minX + (i + 0.5) / size * w;
+                        const y = minY + (j + 0.5) / size * h;
+                        const res = classifyPoint({ x, y }, a, b, c);
+                        let r = 0, g = 0, b_ = 0, a_ = 0;
+                        if ((res.location === "inside" || res.location === "edge") && res.bary) {
+                          [r, g, b_] = baryColor(a, b, c, ...res.bary);
+                          a_ = 255;
+                        }
+                        const idx = (j * size + i) * 4;
+                        imgData.data[idx] = Math.round(r);
+                        imgData.data[idx + 1] = Math.round(g);
+                        imgData.data[idx + 2] = Math.round(b_);
+                        imgData.data[idx + 3] = a_;
+                      }
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    dataUrl = canvas.toDataURL();
+                  }
+                }
+                return (
+                  <g>
+                    <defs>
+                      <clipPath id={triangleFillId}>
+                        <polygon points={vertices.map((v) => `${v.x},${v.y}`).join(" ")} />
+                      </clipPath>
+                    </defs>
+                    {dataUrl && (
+                      <image
+                        href={dataUrl}
+                        x={minX}
+                        y={minY}
+                        width={w}
+                        height={h}
+                        preserveAspectRatio="none"
+                        clipPath={`url(#${triangleFillId})`}
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                    )}
+                    <polygon
+                      points={vertices.map((v) => `${v.x},${v.y}`).join(" ")}
+                      fill="none"
+                      stroke="hsl(220,15%,75%)"
+                      strokeWidth={viewBox.scale * 1.5}
+                    />
+                  </g>
+                );
+              })()}
 
               {/* Edges with colored gradient */}
+              <defs>
+                {[[0, 1], [1, 2], [2, 0]].map(([i, j], idx) => (
+                  <linearGradient
+                    key={idx}
+                    id={`${triangleFillId}-edge-gradient-${idx}`}
+                    gradientUnits="userSpaceOnUse"
+                    x1={vertices[i].x}
+                    y1={vertices[i].y}
+                    x2={vertices[j].x}
+                    y2={vertices[j].y}
+                  >
+                    <stop offset="0%" stopColor={`rgb(${vertices[i].r},${vertices[i].g},${vertices[i].b})`} />
+                    <stop offset="100%" stopColor={`rgb(${vertices[j].r},${vertices[j].g},${vertices[j].b})`} />
+                  </linearGradient>
+                ))}
+              </defs>
               {[[0, 1], [1, 2], [2, 0]].map(([i, j], idx) => (
                 <line
                   key={idx}
                   x1={vertices[i].x} y1={vertices[i].y}
                   x2={vertices[j].x} y2={vertices[j].y}
-                  stroke={VERTEX_COLORS_HEX[i]}
+                  stroke={`url(#${triangleFillId}-edge-gradient-${idx})`}
                   strokeWidth={viewBox.scale * 2}
-                  strokeOpacity={0.4}
+                  strokeOpacity={0.85}
                 />
               ))}
 
